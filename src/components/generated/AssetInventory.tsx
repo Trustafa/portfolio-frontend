@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Building2, TrendingUp, ArrowUpRight, ArrowDownRight, Plus, Search, Filter, FileText, CheckCircle2, AlertCircle, DollarSign, Percent, Calendar, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AddAssetModal } from './AddAssetModal';
+import { getAllAssets } from '@/api/asset';
 
 // --- Types ---
 
@@ -22,166 +23,6 @@ interface AssetRow {
 }
 
 // --- Mock Master Data ---
-
-const MASTER_ASSET_DATA: AssetRow[] = [
-// ASSETS
-{
-  id: '1',
-  category: 'Real Estate',
-  subcategory: 'Residential Property',
-  owner: 'Zanulda',
-  acquisition: '2022-03-16',
-  costBasis: 20300000,
-  currentValue: 24500000,
-  unrealizedGain: 4200000,
-  allocation: 23.9,
-  irr: 15.2,
-  lastUpdated: '2023-10-15',
-  status: 'verified',
-  type: 'asset'
-}, {
-  id: '2',
-  category: 'Real Estate',
-  subcategory: 'Commercial Property',
-  owner: 'Aamir',
-  acquisition: '2021-08-10',
-  costBasis: 18000000,
-  currentValue: 20500000,
-  unrealizedGain: 2500000,
-  allocation: 20.0,
-  irr: 12.1,
-  lastUpdated: '2023-11-01',
-  status: 'verified',
-  type: 'asset'
-}, {
-  id: '3',
-  category: 'Financial Assets',
-  subcategory: 'Public Equities',
-  owner: 'Joint',
-  acquisition: '2020-01-05',
-  costBasis: 17000000,
-  currentValue: 18200000,
-  unrealizedGain: 1200000,
-  allocation: 17.8,
-  irr: 7.3,
-  lastUpdated: '2023-11-01',
-  status: 'verified',
-  type: 'asset'
-}, {
-  id: '4',
-  category: 'Financial Assets',
-  subcategory: 'Fixed Income',
-  owner: 'Zanulda',
-  acquisition: '2019-05-22',
-  costBasis: 12500000,
-  currentValue: 13800000,
-  unrealizedGain: 1300000,
-  allocation: 13.5,
-  irr: 8.9,
-  lastUpdated: '2023-11-01',
-  status: 'verified',
-  type: 'asset'
-}, {
-  id: '5',
-  category: 'Operating Businesses',
-  subcategory: 'Tech Ventures',
-  owner: 'Taher',
-  acquisition: '2018-12-01',
-  costBasis: 15000000,
-  currentValue: 15000000,
-  unrealizedGain: 0,
-  allocation: 14.6,
-  irr: 8.4,
-  lastUpdated: '2023-09-20',
-  status: 'uncertain',
-  type: 'asset'
-}, {
-  id: '6',
-  category: 'Alternatives',
-  subcategory: 'Private Equity',
-  owner: 'Joint',
-  acquisition: '2021-06-15',
-  costBasis: 5900000,
-  currentValue: 8000000,
-  unrealizedGain: 2100000,
-  allocation: 7.8,
-  irr: 22.1,
-  lastUpdated: '2023-08-12',
-  status: 'stale',
-  type: 'asset'
-}, {
-  id: '7',
-  category: 'Cash',
-  subcategory: 'Liquid Cash',
-  owner: 'Zanulda',
-  acquisition: '2024-01-01',
-  costBasis: 2450000,
-  currentValue: 2450000,
-  unrealizedGain: 0,
-  allocation: 2.4,
-  irr: 3.2,
-  lastUpdated: '2023-11-05',
-  status: 'verified',
-  type: 'asset'
-},
-// LIABILITIES
-{
-  id: '8',
-  category: 'Mortgages',
-  subcategory: 'Property Loan - Zanulda',
-  owner: 'Zanulda',
-  acquisition: '2022-03-16',
-  costBasis: -8500000,
-  currentValue: -7800000,
-  unrealizedGain: 700000,
-  allocation: -7.6,
-  irr: -4.2,
-  lastUpdated: '2023-11-01',
-  status: 'verified',
-  type: 'liability'
-}, {
-  id: '9',
-  category: 'Mortgages',
-  subcategory: 'Property Loan - Aamir',
-  owner: 'Aamir',
-  acquisition: '2021-08-10',
-  costBasis: -6200000,
-  currentValue: -5500000,
-  unrealizedGain: 700000,
-  allocation: -5.4,
-  irr: -3.8,
-  lastUpdated: '2023-11-01',
-  status: 'verified',
-  type: 'liability'
-}, {
-  id: '10',
-  category: 'Business Loans',
-  subcategory: 'Operating Line of Credit',
-  owner: 'Taher',
-  acquisition: '2020-06-01',
-  costBasis: -3500000,
-  currentValue: -3200000,
-  unrealizedGain: 300000,
-  allocation: -3.1,
-  irr: -5.1,
-  lastUpdated: '2023-10-15',
-  status: 'verified',
-  type: 'liability'
-}, {
-  id: '11',
-  category: 'Other Liabilities',
-  subcategory: 'Tax Obligations',
-  owner: 'Joint',
-  acquisition: '2023-01-01',
-  costBasis: -1200000,
-  currentValue: -1200000,
-  unrealizedGain: 0,
-  allocation: -1.2,
-  irr: 0,
-  lastUpdated: '2023-11-05',
-  status: 'verified',
-  type: 'liability'
-}];
 
 // --- Sub-components ---
 
@@ -212,42 +53,55 @@ export const AssetInventory = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwner, setSelectedOwner] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [allAssets, setAllAssets] = useState<AssetRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // Separate assets and liabilities
-  const assets = MASTER_ASSET_DATA.filter(item => item.type === 'asset');
-  const liabilities = MASTER_ASSET_DATA.filter(item => item.type === 'liability');
 
-  // Calculate totals
-  const totalAssets = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
-  const totalLiabilities = Math.abs(liabilities.reduce((sum, liability) => sum + liability.currentValue, 0));
-  const totalEquity = totalAssets - totalLiabilities;
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-AE', {
-      style: 'currency',
-      currency: 'AED',
-      maximumFractionDigits: 0
-    }).format(Math.abs(val));
-  };
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        setLoading(true);
+        const assets = await getAllAssets();
+        setAllAssets(assets);
+        setLoading(false);
+      } catch (err) {
+        console.log('Assent fetch failed');
+        // setError('Failed to fetch assets');
+        setLoading(false);
+      }
+    };
+    fetchAssets();
+  }, []);
+  
+  const assets = allAssets.filter(a => a.type === 'asset');
+  const liabilities = allAssets.filter(a => a.type === 'liability');
+  const owners = ['All', ...Array.from(new Set(allAssets.map(a => a.owner)))];
 
-  // Filter data
+  // Filter assets based on search and owner
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = asset.category.toLowerCase().includes(searchQuery.toLowerCase()) || asset.subcategory.toLowerCase().includes(searchQuery.toLowerCase()) || asset.owner.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = asset.category.toLowerCase().includes(searchQuery.toLowerCase()) || (asset.subcategory?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) || asset.owner.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesOwner = selectedOwner === 'All' || asset.owner === selectedOwner;
     return matchesSearch && matchesOwner;
   });
+
   const filteredLiabilities = liabilities.filter(liability => {
-    const matchesSearch = liability.category.toLowerCase().includes(searchQuery.toLowerCase()) || liability.subcategory.toLowerCase().includes(searchQuery.toLowerCase()) || liability.owner.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = liability.category.toLowerCase().includes(searchQuery.toLowerCase()) || (liability.subcategory?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) || liability.owner.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesOwner = selectedOwner === 'All' || liability.owner === selectedOwner;
     return matchesSearch && matchesOwner;
   });
-  const owners = ['All', ...Array.from(new Set(MASTER_ASSET_DATA.map(a => a.owner)))];
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED', maximumFractionDigits: 0 }).format(Math.abs(val));
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  if (loading) return <div className="p-4 text-center">Loading assets...</div>;
+  if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
   return <div className="min-h-screen bg-[#F5F3EF]">
       {/* Header */}
       <header className="bg-white border-b border-[#1E5F46]/10 sticky top-0 z-20">
@@ -287,7 +141,7 @@ export const AssetInventory = () => {
               </div>
             </div>
             <p className="text-xs font-semibold text-[#1E5F46]/60 uppercase tracking-wide mb-1">Total Assets</p>
-            <h3 className="text-2xl font-bold text-[#1E5F46]">{formatCurrency(totalAssets)}</h3>
+            {/* <h3 className="text-2xl font-bold text-[#1E5F46]">{formatCurrency(allAssets)}</h3> */}
             <p className="text-xs text-[#1E5F46]/50 mt-1">{assets.length} asset entries</p>
           </motion.div>
 
@@ -306,7 +160,7 @@ export const AssetInventory = () => {
               </div>
             </div>
             <p className="text-xs font-semibold text-[#1E5F46]/60 uppercase tracking-wide mb-1">Total Liabilities</p>
-            <h3 className="text-2xl font-bold text-[#EF4444]">{formatCurrency(totalLiabilities)}</h3>
+            {/* <h3 className="text-2xl font-bold text-[#EF4444]">{formatCurrency(totalLiabilities)}</h3> */}
             <p className="text-xs text-[#1E5F46]/50 mt-1">{liabilities.length} liability entries</p>
           </motion.div>
 
@@ -325,7 +179,7 @@ export const AssetInventory = () => {
               </div>
             </div>
             <p className="text-xs font-semibold text-[#1E5F46]/60 uppercase tracking-wide mb-1">Net Equity</p>
-            <h3 className="text-2xl font-bold text-[#1E5F46]">{formatCurrency(totalEquity)}</h3>
+            {/* <h3 className="text-2xl font-bold text-[#1E5F46]">{formatCurrency(totalEquity)}</h3> */}
             <p className="text-xs text-[#1E5F46]/50 mt-1">Assets - Liabilities</p>
           </motion.div>
         </div>
@@ -347,7 +201,7 @@ export const AssetInventory = () => {
             </div>
           </div>
           <p className="text-sm text-[#1E5F46]/60">
-            Showing {filteredAssets.length + filteredLiabilities.length} of {MASTER_ASSET_DATA.length} entries
+            {/* Showing {filteredAssets.length + filteredLiabilities.length} of {MASTER_ASSET_DATA.length} entries */}
           </p>
         </div>
 
