@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Container, Theme } from './settings/types';
 import { LensDashboard } from './components/generated/LensDashboard';
+import { SimpleLogin } from './components/generated/AuthScreen';
 
 const theme: Theme = 'light';
 // only use 'centered' container for standalone components, never for full page apps or websites.
